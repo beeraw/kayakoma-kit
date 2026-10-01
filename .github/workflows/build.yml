@@ -1,0 +1,42 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Build and test
+    # The oldest Xcode the apps are built with: code that only newer compilers
+    # accept fails here first.
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode
+        run: |
+          # Oldest stable Xcode 26 installed on the runner.
+          oldest=$(ls -d /Applications/Xcode_*.app 2>/dev/null \
+            | sed -E 's#^/Applications/Xcode_(.*)\.app$#\1#' \
+            | grep -E '^26(\.[0-9]+)*$' \
+            | sort -t. -k1,1n -k2,2n -k3,3n \
+            | head -n 1)
+          if [ -z "$oldest" ]; then
+            echo "::error::No Xcode 26 on this runner."
+            ls -d /Applications/Xcode*.app || true
+            exit 1
+          fi
+          sudo xcode-select --switch "/Applications/Xcode_$oldest.app"
+          xcodebuild -version
+          swift --version
+
+      - uses: actions/cache@v6
+        with:
+          path: .build/checkouts
+          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+
+      - name: Build and test
+        run: swift test

@@ -229,7 +229,8 @@ struct BlockBuilder {
         let separatorAttributes: [NSAttributedString.Key: Any] = [.font: bodyFont, .foregroundColor: context.textColor]
         let text = NSMutableAttributedString()
         var rows: [[TableBlock.Cell]] = []
-        for (rowIndex, cells) in ([headerCells] + bodyRows).enumerated() {
+        let allRows: [[Markdown.Table.Cell]] = [headerCells] + bodyRows
+        for (rowIndex, cells) in allRows.enumerated() {
             if rowIndex > 0 { text.append(NSAttributedString(string: lineSeparator, attributes: separatorAttributes)) }
             let weight: NSFont.Weight = rowIndex == 0 ? .semibold : .regular
             let style = InlineStyle(size: theme.fontSize, weight: weight, color: context.textColor)
@@ -244,17 +245,19 @@ struct BlockBuilder {
                 let range = NSRange(location: text.length, length: content.length)
                 text.append(content)
                 let paragraphStyle = NSMutableParagraphStyle()
-                paragraphStyle.alignment = switch alignments[column] {
-                case .left: .left
-                case .center: .center
-                case .right: .right
+                let alignment: NSTextAlignment
+                switch alignments[column] {
+                case .left: alignment = .left
+                case .center: alignment = .center
+                case .right: alignment = .right
                 }
+                paragraphStyle.alignment = alignment
                 paragraphStyle.lineHeightMultiple = min(theme.lineHeightMultiple, 1.1)
                 let styled = NSMutableAttributedString(attributedString: content)
-                styled.addAttribute(.paragraphStyle, value: paragraphStyle, range: styled.fullRange)
+                styled.addAttribute(NSAttributedString.Key.paragraphStyle, value: paragraphStyle, range: styled.fullRange)
                 // The cell's own layout would underline links; clicks use the
                 // paragraph's attributes, which keep the link.
-                styled.removeAttribute(.link, range: styled.fullRange)
+                styled.removeAttribute(NSAttributedString.Key.link, range: styled.fullRange)
                 row.append(TableBlock.Cell(range: range, content: styled))
             }
             rows.append(row)
