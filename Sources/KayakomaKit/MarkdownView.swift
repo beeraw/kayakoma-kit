@@ -409,22 +409,33 @@ public final class MarkdownView: NSView {
     private func frame(ofBlock index: Int) -> CGRect? {
         guard let layoutManager = textView.textLayoutManager else { return nil }
         let range = renderer.range(ofBlock: index)
-        guard range.length > 0 else { return nil }
+        guard range.length > 0, let storage = textView.textStorage, range.upperBound <= storage.length else { return nil }
         let start = layoutManager.location(layoutManager.documentRange.location, offsetBy: range.location)
         let last = layoutManager.location(layoutManager.documentRange.location, offsetBy: range.upperBound - 1)
         guard let start, let last else { return nil }
         var top: CGRect?
         var bottom: CGRect?
+        var trailingEmptyLine: CGFloat = 0
         layoutManager.enumerateTextLayoutFragments(from: start, options: [.ensuresLayout]) { fragment in
             top = fragment.layoutFragmentFrame
             return false
         }
         layoutManager.enumerateTextLayoutFragments(from: last, options: [.ensuresLayout]) { fragment in
             bottom = fragment.layoutFragmentFrame
+            // The last paragraph's fragment also holds the empty line TextKit
+            // adds after the document's final line break, preceded by the
+            // paragraph's spacing before; neither is part of the block.
+            let lines = fragment.textLineFragments
+            if index == renderer.blocks.count - 1, lines.count > 1, let line = lines.last, line.characterRange.length == 0 {
+                let style = storage.attribute(.paragraphStyle, at: range.upperBound - 1, effectiveRange: nil) as? NSParagraphStyle
+                trailingEmptyLine = line.typographicBounds.height + (style?.paragraphSpacingBefore ?? 0)
+            }
             return false
         }
         guard let top, let bottom else { return nil }
-        return top.union(bottom)
+        var frame = top.union(bottom)
+        frame.size.height = max(frame.height - trailingEmptyLine, 0)
+        return frame
     }
 
     private func nearestSourceLine(before index: Int) -> Int? {
@@ -636,6 +647,9 @@ extension MarkdownTextView {
         let local = CGPoint(x: inContainer.x - frame.minX, y: inContainer.y - frame.minY)
         guard fragment.containsTable(local) else { return nil }
         let start = layoutManager.offset(from: layoutManager.documentRange.location, to: fragment.rangeInElement.location)
+        // A fragment left from text since replaced must not index into the new text.
+        guard let storage = textStorage, start >= 0, start < storage.length,
+              storage.attribute(.kayakomaTable, at: start, effectiveRange: nil) as? TableBlock === fragment.table else { return nil }
         return (fragment, start, local)
     }
 

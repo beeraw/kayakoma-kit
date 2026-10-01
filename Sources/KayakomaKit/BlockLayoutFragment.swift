@@ -125,8 +125,30 @@ struct CodeLabel: Equatable {
 final class BlockLayoutFragment: NSTextLayoutFragment {
     let decoration: BlockDecoration?
 
+    /// A code span of the paragraph: its range in the paragraph, style and font.
+    private struct InlineCode {
+        let range: NSRange
+        let style: InlineCodeStyle
+        let font: NSFont
+    }
+
+    /// The paragraph's code spans, read once: once the text storage is
+    /// edited, an outdated fragment can still be asked for its bounds, and
+    /// its paragraph's text may then no longer be readable.
+    private let inlineCode: [InlineCode]
+
     init(textElement: NSTextElement, range: NSTextRange?, decoration: BlockDecoration?) {
         self.decoration = decoration
+        var inlineCode: [InlineCode] = []
+        if let string = (textElement as? NSTextParagraph)?.attributedString {
+            string.enumerateAttribute(.kayakomaInlineCode, in: string.fullRange) { value, range, _ in
+                guard let style = value as? InlineCodeStyle else { return }
+                let font = string.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont
+                    ?? .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+                inlineCode.append(InlineCode(range: range, style: style, font: font))
+            }
+        }
+        self.inlineCode = inlineCode
         super.init(textElement: textElement, range: range)
     }
 
@@ -243,15 +265,12 @@ final class BlockLayoutFragment: NSTextLayoutFragment {
     /// baseline and the span's font, so that it hugs the text whatever the
     /// line height.
     private func inlineCodeShapes() -> [Shape] {
-        guard let paragraph = textElement as? NSTextParagraph else { return [] }
-        let string = paragraph.attributedString
         var shapes: [Shape] = []
-        string.enumerateAttribute(.kayakomaInlineCode, in: string.fullRange) { value, range, _ in
-            guard let style = value as? InlineCodeStyle else { return }
-            let font = string.attribute(.font, at: range.location, effectiveRange: nil) as? NSFont
-                ?? .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        for span in inlineCode {
+            let style = span.style
+            let font = span.font
             for line in textLineFragments {
-                guard let overlap = range.intersection(line.characterRange), overlap.length > 0 else { continue }
+                guard let overlap = span.range.intersection(line.characterRange), overlap.length > 0 else { continue }
                 let bounds = line.typographicBounds
                 let start = line.locationForCharacter(at: overlap.location).x
                 let end = line.locationForCharacter(at: overlap.upperBound).x
@@ -278,10 +297,16 @@ final class BlockLayoutFragment: NSTextLayoutFragment {
 final class TableLayoutFragment: NSTextLayoutFragment {
     let table: TableBlock
     let decoration: BlockDecoration?
+    /// The paragraph's style, read once: once the text storage is edited, an
+    /// outdated fragment can still be asked for its frame, and its paragraph's
+    /// text may then no longer be readable.
+    private let paragraphStyle: NSParagraphStyle?
 
     init(textElement: NSTextElement, range: NSTextRange?, table: TableBlock, decoration: BlockDecoration?) {
         self.table = table
         self.decoration = decoration
+        let text = (textElement as? NSTextParagraph)?.attributedString
+        paragraphStyle = text.flatMap { $0.length > 0 ? $0.attribute(.paragraphStyle, at: 0, effectiveRange: nil) : nil } as? NSParagraphStyle
         super.init(textElement: textElement, range: range)
     }
 
@@ -303,7 +328,7 @@ final class TableLayoutFragment: NSTextLayoutFragment {
         let padding = container?.lineFragmentPadding ?? 0
         let containerWidth = container?.size.width ?? 0
         let origin = super.layoutFragmentFrame.minX
-        let style = (textElement as? NSTextParagraph)?.attributedString.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle
+        let style = paragraphStyle
         let left = padding + table.indent - origin
         let available = max(containerWidth - padding - origin - left, 0)
         return Placement(
