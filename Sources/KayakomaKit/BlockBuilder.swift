@@ -100,7 +100,7 @@ struct BlockBuilder {
         switch markup {
         case let heading as Heading:
             let style = theme.headings[level: heading.level]
-            let inline = InlineStyle(size: style.size, weight: style.weight.fontWeight, color: context.textColor)
+            let inline = InlineStyle(size: style.size, weight: style.weight.fontWeight, heading: true, color: context.textColor)
             var paragraph = makeParagraph(inlines(heading.children, inline), context: context, font: font(for: inline))
             paragraph.spacingBefore = style.spacingBefore
             paragraph.spacingAfter = theme.paragraphSpacing
@@ -355,6 +355,8 @@ struct BlockBuilder {
         var weight: NSFont.Weight
         var italic = false
         var strikethrough = false
+        /// Heading text, set in the theme's heading font family when it has one.
+        var heading = false
         var color: NSColor
         var link: URL?
     }
@@ -484,7 +486,7 @@ struct BlockBuilder {
 
     private func font(for style: InlineStyle) -> NSFont {
         let base: NSFont
-        if let family = theme.fontFamily {
+        if let family = style.heading ? theme.headingFontFamily ?? theme.fontFamily : theme.fontFamily {
             let descriptor = NSFontDescriptor(fontAttributes: [
                 .family: family,
                 .traits: [NSFontDescriptor.TraitKey.weight: style.weight.rawValue],

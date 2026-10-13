@@ -31,6 +31,8 @@ public struct Theme: Codable, Sendable, Equatable {
     public var codeFontFamily: String?
     /// Size of code text, in points.
     public var codeFontSize: CGFloat
+    /// Font family of headings; `nil` uses the body font family.
+    public var headingFontFamily: String?
     /// Styles of headings, from level 1 to level 6.
     ///
     /// In JSON, an object keyed by level, `"1"` to `"6"`, whose levels and their
@@ -88,6 +90,7 @@ public struct Theme: Codable, Sendable, Equatable {
         fontSize: CGFloat = 14,
         codeFontFamily: String? = nil,
         codeFontSize: CGFloat = 12.5,
+        headingFontFamily: String? = nil,
         headings: HeadingStyles = .default,
         lineHeightMultiple: CGFloat = 1.2,
         textColor: Color = .system(.label),
@@ -119,6 +122,7 @@ public struct Theme: Codable, Sendable, Equatable {
         self.fontSize = fontSize
         self.codeFontFamily = codeFontFamily
         self.codeFontSize = codeFontSize
+        self.headingFontFamily = headingFontFamily
         self.headings = headings
         self.lineHeightMultiple = lineHeightMultiple
         self.textColor = textColor

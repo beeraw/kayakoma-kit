@@ -125,6 +125,7 @@ extension Theme: PartiallyCodable {
             CodingField("fontSize", \.fontSize),
             CodingField("codeFontFamily", \.codeFontFamily),
             CodingField("codeFontSize", \.codeFontSize),
+            CodingField("headingFontFamily", \.headingFontFamily),
             headingsField,
             CodingField("lineHeightMultiple", \.lineHeightMultiple),
             CodingField("textColor", \.textColor),

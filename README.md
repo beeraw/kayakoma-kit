@@ -134,6 +134,7 @@ Decoding is strict so that typos are caught: an unknown key, an unknown color na
 | `fontSize` | 14 | Body size, in points |
 | `codeFontFamily` | system monospaced | Code font family |
 | `codeFontSize` | 12.5 | Code size, in points |
+| `headingFontFamily` | body font family | Heading font family |
 | `headings` | 28 / 22 / 18 / 16 / 14 / 13 pt | Size, weight and space before, per level 1 to 6 |
 | `lineHeightMultiple` | 1.2 | Line height, as a multiple of the font's natural height |
 | `textColor` | `label` | Body text |

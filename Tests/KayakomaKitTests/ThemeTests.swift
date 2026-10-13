@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Testing
 @testable import KayakomaKit
@@ -11,6 +12,7 @@ import Testing
 @Test func customThemeRoundTripsThroughJSON() throws {
     var theme = Theme.default
     theme.fontFamily = "Georgia"
+    theme.headingFontFamily = "Helvetica Neue"
     theme.fontSize = 16
     theme.maxLineWidth = nil
     theme.linkColor = .custom(light: "#0055CC", dark: "#66AAFFCC")
@@ -241,4 +243,21 @@ private func decodingErrorMessage(_ json: String) -> String? {
     #expect(object["tableBorders"] as? String == "all")
     let defaults = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(Theme.default)) as? [String: Any])
     #expect(defaults["tableBorders"] as? String == "horizontal")
+}
+
+@MainActor
+@Test func headingsUseTheirOwnFontFamily() throws {
+    var theme = Theme.default
+    theme.fontFamily = "Georgia"
+    let document = RenderedDocument(source: "# Title\n\nBody.")
+    func family(of kind: RenderedDocument.Block.Kind, _ theme: Theme) throws -> String? {
+        let block = try #require(document.blocks.first { $0.kind == kind })
+        let text = BlockBuilder(theme: theme, baseURL: nil).build(block.markup.markup)
+        return (text.attribute(.font, at: 0, effectiveRange: nil) as? NSFont)?.familyName
+    }
+    // Without a heading family, headings follow the body.
+    #expect(try family(of: .heading(level: 1), theme) == "Georgia")
+    theme.headingFontFamily = "Helvetica Neue"
+    #expect(try family(of: .heading(level: 1), theme) == "Helvetica Neue")
+    #expect(try family(of: .paragraph, theme) == "Georgia")
 }
